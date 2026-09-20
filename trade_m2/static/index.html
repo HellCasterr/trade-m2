@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08110f">
+  <title>Trade M2 · Case 2 alerts</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">UPSTOX · NIFTY 200 · LIVE TICK CROSSINGS</p>
+        <h1>Trade M2</h1>
+        <p class="subtitle">Case 2 alerts at Point A and Point B—no retracement wait for inside-band opens.</p>
+      </div>
+      <div class="top-actions">
+        <button id="notifyButton" class="button secondary">Enable browser alerts</button>
+        <a id="loginButton" class="button primary" href="/auth/upstox/login">Connect Upstox</a>
+      </div>
+    </header>
+
+    <section id="message" class="message hidden" role="status"></section>
+
+    <section class="status-grid" aria-label="System status">
+      <article class="status-card">
+        <span>UPSTOX</span>
+        <strong id="authStatus">Checking…</strong>
+        <small id="userName">OAuth required daily</small>
+      </article>
+      <article class="status-card">
+        <span>LIVE FEED</span>
+        <strong id="feedStatus">Stopped</strong>
+        <small id="feedDetail">0 subscriptions</small>
+      </article>
+      <article class="status-card">
+        <span>WATCHLIST</span>
+        <strong id="ruleCount">0 / 200</strong>
+        <small id="activeCount">0 active</small>
+      </article>
+      <article class="status-card">
+        <span>INDIA VIX RANGE</span>
+        <strong id="movementValue">—</strong>
+        <small id="movementDetail">Previous close ÷ 8.54400</small>
+      </article>
+    </section>
+
+    <section class="panel loader-panel">
+      <div>
+        <p class="section-label">TODAY'S UNIVERSE</p>
+        <h2>Load official Nifty 200</h2>
+        <p class="muted">Creates Point A and Point B from each stock's previous completed-session close, then subscribes to Upstox V3 LTPC.</p>
+      </div>
+      <div class="load-controls">
+        <label>
+          Range percentage
+          <input id="percentage" type="number" min="0.01" max="10" step="0.0001" placeholder="Auto from VIX">
+        </label>
+        <button id="loadButton" class="button primary">Load Nifty 200</button>
+      </div>
+      <div id="jobArea" class="job hidden">
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        <p id="jobText" class="muted"></p>
+      </div>
+    </section>
+
+    <section class="logic-grid">
+      <article class="logic-card long">
+        <span class="signal-tag">POINT A · LONG</span>
+        <h3>Upper crossing</h3>
+        <p>Open inside B–A → cross A upward. Or open above A → cross A downward.</p>
+      </article>
+      <article class="logic-card short">
+        <span class="signal-tag">POINT B · SHORT</span>
+        <h3>Lower crossing</h3>
+        <p>Open inside B–A → cross B downward. Or open below B → cross B upward.</p>
+      </article>
+      <article class="logic-card neutral">
+        <span class="signal-tag">GUARDRAILS</span>
+        <h3>One alert per boundary</h3>
+        <p>State persists in SQLite. Reconnect recovery skips any 3-minute candle that touched both levels.</p>
+      </article>
+    </section>
+
+    <section class="panel alert-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">REAL-TIME ALERTS</p>
+          <h2>Signal tape</h2>
+        </div>
+        <span id="alertCount" class="count-pill">0 alerts</span>
+      </div>
+      <div id="alerts" class="alert-list">
+        <div class="empty-state">No Case 2 crossings yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading rules-heading">
+        <div>
+          <p class="section-label">POINT A / POINT B</p>
+          <h2>Today's stocks</h2>
+        </div>
+        <div class="table-actions">
+          <input id="filter" type="search" placeholder="Filter symbol">
+          <button id="startAll" class="button small">Start all</button>
+          <button id="pauseAll" class="button small secondary">Pause all</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Stock</th><th>Reference</th><th>Open</th><th class="upper">Point A</th><th class="lower">Point B</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rulesBody"><tr><td colspan="7" class="empty-state">Load the Nifty 200 to begin.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <p>Alerting and decision support only. This program does not place orders. Verify price, liquidity, and risk before trading.</p>
+      <a href="/api/docs">API docs</a>
+    </footer>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

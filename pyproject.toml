@@ -1,0 +1,16 @@
+[project]
+name = "trade-m2"
+version = "1.0.0"
+description = "Upstox-only Case 2 live crossing alerts for the Nifty 200"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
