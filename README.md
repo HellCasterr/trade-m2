@@ -46,6 +46,9 @@ the level establishes which side the market occupied.
 The default is one Point A alert and one Point B alert per stock per trading day.
 The opening zone, last price, and sent flags are stored in SQLite so dashboard
 refreshes cannot duplicate an alert.
+Reloading a stock with a different percentage or corrected reference value resets
+that stock's Case 2 state and replaces its earlier same-day alerts, so stale
+deduplication records cannot block the recalculated levels.
 
 ## Recovery and protective stop
 
@@ -54,6 +57,9 @@ subscription, or a WebSocket reconnect, Trade M2 first requests today's complete
 three-minute candles and queues incoming ticks until recovery finishes. Because
 OHLC data cannot reveal intrabar order, an inside-open recovery candle that touched
 both A and B is deliberately skipped instead of guessing which alert came first.
+The daily-open quote is accepted only when its Upstox timestamp belongs to the
+current trading date, preventing a pre-market start from treating yesterday's OHLC
+as today's opening price.
 
 Every alert includes an indicative stop on the protective side of the entry. It
 uses a 14-candle three-minute ATR and recent 10-candle structure, with a fixed

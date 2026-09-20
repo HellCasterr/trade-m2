@@ -143,3 +143,8 @@ def test_unchanged_rule_preserves_state_and_changed_percentage_resets(store, tra
     reset = store.daily_rules(trading_date)[0]
     assert reset["upper_sent"] is False
     assert reset["opening_price"] is None
+    assert store.events_after(0, 20, trading_date) == []
+    tick(store, trading_date, 100)
+    replacement = tick(store, trading_date, 109, 2)
+    assert len(replacement) == 1
+    assert replacement[0]["boundary"] == "UPPER"

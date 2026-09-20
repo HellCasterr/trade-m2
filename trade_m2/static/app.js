@@ -182,6 +182,7 @@ function watchJob(id) {
         state.jobTimer = null;
         $("loadButton").disabled = false;
         await Promise.all([refreshStatus(), refreshRules()]);
+        await startEvents();
         if (job.status === "FAILED") showMessage(job.fatal_error || "Nifty 200 load failed.", true);
         else if (job.failed) showMessage(`${job.failed} symbols failed. Check the job API for details.`, true);
       }

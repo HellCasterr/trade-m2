@@ -210,7 +210,9 @@ class UpstoxGateway:
         )
         return reference_date, close
 
-    def session_open_prices(self, tokens: list[str]) -> dict[str, Decimal]:
+    def session_open_prices(
+        self, tokens: list[str], trading_date: date
+    ) -> dict[str, Decimal]:
         """Fetch today's exchange open for up to 500 instruments in one request."""
         if not tokens:
             return {}
@@ -228,6 +230,14 @@ class UpstoxGateway:
             if hasattr(live, "to_dict"):
                 live = live.to_dict()
             if not isinstance(live, dict) or live.get("open") is None:
+                continue
+            raw_timestamp = live.get("ts")
+            if raw_timestamp is None:
+                continue
+            candle_date = datetime.fromtimestamp(
+                int(raw_timestamp) / 1000, tz=UTC
+            ).astimezone(IST).date()
+            if candle_date != trading_date:
                 continue
             price = as_decimal(live["open"])
             if price > 0:
@@ -374,7 +384,7 @@ class UpstoxMonitor:
         now = datetime.now(IST)
         opening, _ = session_bounds(now.date())
         try:
-            open_prices = self.gateway.session_open_prices(sorted(tokens))
+            open_prices = self.gateway.session_open_prices(sorted(tokens), now.date())
         except Exception as exc:
             open_prices = {}
             self._record_error(f"Session-open lookup failed; using candle fallback: {exc}")

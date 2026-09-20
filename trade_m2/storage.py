@@ -106,6 +106,19 @@ class Store:
         upper, lower = calculate_levels(reference_close, percentage)
         now = datetime.now(UTC).isoformat(timespec="seconds")
         with self._lock, self.connection() as connection:
+            existing = connection.execute(
+                """SELECT id, percentage, reference_date, reference_close
+                   FROM rules WHERE trading_date=? AND instrument_token=?""",
+                (trading_date.isoformat(), instrument_token),
+            ).fetchone()
+            configuration_changed = bool(
+                existing
+                and (
+                    existing["percentage"] != str(percentage)
+                    or existing["reference_date"] != reference_date.isoformat()
+                    or existing["reference_close"] != str(reference_close)
+                )
+            )
             connection.execute(
                 """
                 INSERT INTO rules (
@@ -123,14 +136,24 @@ class Store:
                     upper_level=excluded.upper_level,
                     lower_level=excluded.lower_level,
                     opening_price=CASE WHEN rules.percentage=excluded.percentage
+                        AND rules.reference_date=excluded.reference_date
+                        AND rules.reference_close=excluded.reference_close
                         THEN rules.opening_price ELSE NULL END,
                     opening_zone=CASE WHEN rules.percentage=excluded.percentage
+                        AND rules.reference_date=excluded.reference_date
+                        AND rules.reference_close=excluded.reference_close
                         THEN rules.opening_zone ELSE NULL END,
                     last_price=CASE WHEN rules.percentage=excluded.percentage
+                        AND rules.reference_date=excluded.reference_date
+                        AND rules.reference_close=excluded.reference_close
                         THEN rules.last_price ELSE NULL END,
                     upper_sent=CASE WHEN rules.percentage=excluded.percentage
+                        AND rules.reference_date=excluded.reference_date
+                        AND rules.reference_close=excluded.reference_close
                         THEN rules.upper_sent ELSE 0 END,
                     lower_sent=CASE WHEN rules.percentage=excluded.percentage
+                        AND rules.reference_date=excluded.reference_date
+                        AND rules.reference_close=excluded.reference_close
                         THEN rules.lower_sent ELSE 0 END
                 """,
                 (
@@ -139,6 +162,10 @@ class Store:
                     str(upper), str(lower), now,
                 ),
             )
+            if configuration_changed and existing is not None:
+                connection.execute(
+                    "DELETE FROM events WHERE rule_id=?", (existing["id"],)
+                )
             row = connection.execute(
                 "SELECT * FROM rules WHERE trading_date=? AND instrument_token=?",
                 (trading_date.isoformat(), instrument_token),
