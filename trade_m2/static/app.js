@@ -1,4 +1,4 @@
-const state = { rules: [], events: [], latestId: 0, source: null, jobTimer: null };
+const state = { rules: [], events: [], latestId: 0, source: null, jobTimer: null, telegramTesting: false };
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -46,9 +46,53 @@ async function refreshStatus() {
     $("activeCount").textContent = `${data.active_rule_count} active · ${data.market_open ? "market open" : "market closed"}`;
     if (feed.last_error) $("feedDetail").title = feed.last_error;
     if (data.load_job?.status === "RUNNING" && !state.jobTimer) watchJob(data.load_job.id);
+    renderTelegram(data.telegram);
     if (data.authenticated) refreshMovement();
   } catch (error) {
     $("feedStatus").textContent = "Unavailable";
+  }
+}
+
+function renderTelegram(data) {
+  if (!data) return;
+  $("telegramStatus").textContent = data.error || (data.running
+    ? `Ready · ${data.recipients.length} recipient(s) · delivery continues with the browser closed`
+    : "Telegram delivery is stopped. Restart Trade M2.");
+  $("telegramTestButton").disabled = !data.configured || !data.running || state.telegramTesting;
+  $("telegramTestButton").textContent = state.telegramTesting ? "Testing…"
+    : (data.recipients.length === 2 ? "Send test to both chats" : "Send Telegram test");
+  $("telegramRecipients").innerHTML = data.recipients.map((recipient, index) => {
+    const counts = recipient.counts;
+    return `<div class="telegram-recipient">
+      <strong>Recipient ${index + 1} · ${escapeHtml(recipient.chat)}</strong>
+      <p class="muted">${counts.sent || 0} sent · ${counts.pending || 0} pending · ${counts.failed || 0} failed · ${counts.expired || 0} expired</p>
+      ${recipient.last_error ? `<p class="telegram-error">${escapeHtml(recipient.last_error)}</p>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function testTelegram() {
+  state.telegramTesting = true;
+  $("telegramTestButton").disabled = true;
+  $("telegramTestButton").textContent = "Testing…";
+  $("telegramTestResult").textContent = "Queuing a test for each configured chat…";
+  try {
+    const test = await api("/api/telegram/test", { method: "POST", body: "{}" });
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) {
+      const result = await api(`/api/telegram/tests/${encodeURIComponent(test.test_id)}`);
+      $("telegramTestResult").textContent = result.recipients.map((recipient, index) =>
+        `Recipient ${index + 1} (${recipient.chat}): ${recipient.last_status}${recipient.last_error ? ` — ${recipient.last_error}` : ""}`
+      ).join(" | ");
+      if (result.recipients.every((recipient) => !["pending", "waiting"].includes(recipient.last_status))) return;
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    }
+    $("telegramTestResult").textContent += " | Still queued; retries continue in the background. Check delivery status above.";
+  } catch (error) {
+    $("telegramTestResult").textContent = error.message;
+  } finally {
+    state.telegramTesting = false;
+    refreshStatus();
   }
 }
 
@@ -109,7 +153,7 @@ function renderEvents() {
 }
 
 function notifyEvent(event) {
-  if (Notification.permission !== "granted") return;
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
   const title = `${event.trade_side} ${event.tradingsymbol} · ${event.boundary}`;
   const body = `Entry ₹${event.entry_price_display} · SL ₹${event.stop_loss_display} (${event.risk_percent_display})`;
   const notification = new Notification(title, { body, tag: `trade-m2-${event.id}`, requireInteraction: true });
@@ -211,6 +255,7 @@ $("notifyButton").addEventListener("click", async () => {
   if (permission !== "granted") showMessage("Browser notifications were not enabled.", true);
 });
 $("loadButton").addEventListener("click", loadNifty200);
+$("telegramTestButton").addEventListener("click", testTelegram);
 $("filter").addEventListener("input", renderRules);
 $("startAll").addEventListener("click", () => setBulk(true));
 $("pauseAll").addEventListener("click", () => setBulk(false));
