@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,10 +19,28 @@ class Settings:
     host: str
     port: int
     database_path: Path
+    telegram_bot_token: str = field(default="", repr=False)
+    telegram_chat_ids: tuple[str, ...] = ()
+    telegram_enabled: bool = True
 
     @property
     def upstox_configured(self) -> bool:
         return bool(self.upstox_api_key and self.upstox_api_secret)
+
+    @property
+    def telegram_error(self) -> str | None:
+        if not self.telegram_enabled:
+            return "Telegram is disabled in .env."
+        if not self.telegram_bot_token:
+            return "Add TELEGRAM_BOT_TOKEN to .env and restart Trade M2."
+        if not self.telegram_chat_ids:
+            return "Add two comma-separated chat IDs to TELEGRAM_CHAT_IDS and restart Trade M2."
+        if any(
+            not re.fullmatch(r"-?[1-9][0-9]{0,18}", chat_id)
+            for chat_id in self.telegram_chat_ids
+        ):
+            return "Use numeric Telegram chat IDs, not phone numbers or personal @usernames."
+        return None
 
 
 def get_settings() -> Settings:
@@ -38,4 +57,15 @@ def get_settings() -> Settings:
         database_path=Path(
             os.getenv("DATABASE_PATH", str(data_dir / "trade_m2.db"))
         ),
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+        telegram_chat_ids=tuple(dict.fromkeys(
+            value.strip()
+            for value in (
+                os.getenv("TELEGRAM_CHAT_IDS", "").strip()
+                or os.getenv("TELEGRAM_CHAT_ID", "")
+            ).split(",")
+            if value.strip()
+        )),
+        telegram_enabled=os.getenv("TELEGRAM_ENABLED", "true").strip().lower()
+        in {"1", "true", "yes", "on"},
     )

@@ -43,6 +43,13 @@ h3 { margin: 14px 0 8px; font-size: 20px; }
 input { min-width: 180px; border: 1px solid #2b4942; border-radius: 10px; background: #08110f; color: var(--text); padding: 10px 12px; outline: none; }
 input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(61,224,163,.1); }
 .muted { color: var(--muted); line-height: 1.5; }
+.telegram-recipients { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.telegram-recipient { border: 1px solid var(--line); border-radius: 12px; padding: 15px; overflow-wrap: anywhere; }
+.telegram-recipient p { margin-bottom: 0; font-size: 13px; }
+.telegram-error { color: var(--red); }
+.telegram-panel details { margin-top: 16px; }
+.telegram-panel summary { cursor: pointer; color: var(--green); }
+.telegram-panel code { overflow-wrap: anywhere; }
 .job { grid-column: 1 / -1; }
 .progress-track { height: 8px; background: #08110f; border-radius: 999px; overflow: hidden; }
 .progress-bar { width: 0; height: 100%; background: var(--green); transition: width .25s; }

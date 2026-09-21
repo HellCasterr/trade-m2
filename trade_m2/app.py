@@ -21,6 +21,7 @@ from .domain import IST, market_session_open
 from .nifty200 import Nifty200Service
 from .services import MarketMovementService, NiftyLoadJobs, create_daily_rule
 from .storage import Store
+from .telegram import TelegramNotifier
 from .upstox import UpstoxError, UpstoxGateway, UpstoxMonitor
 
 
@@ -61,13 +62,18 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     nifty200 = Nifty200Service(settings.database_path.parent / "nifty200.json")
     movement = MarketMovementService(gateway)
     jobs = NiftyLoadJobs(gateway, monitor, store, nifty200)
+    telegram = TelegramNotifier(settings, store)
     oauth_states: dict[str, datetime] = {}
     oauth_lock = threading.RLock()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        yield
-        monitor.stop()
+        telegram.start()
+        try:
+            yield
+        finally:
+            monitor.stop()
+            telegram.stop()
 
     app = FastAPI(
         title="Trade M2",
@@ -81,6 +87,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     app.state.monitor = monitor
     app.state.nifty200 = nifty200
     app.state.jobs = jobs
+    app.state.telegram = telegram
 
     static_dir = Path(__file__).resolve().parent / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -135,7 +142,35 @@ def build_app(settings: Settings | None = None) -> FastAPI:
             "active_rule_count": sum(rule["active"] for rule in rules),
             "monitor": monitor.status(),
             "load_job": jobs.active(),
+            "telegram": telegram.status(),
         }
+
+    @app.get("/api/telegram/status")
+    def telegram_status() -> dict[str, Any]:
+        return telegram.status()
+
+    @app.post("/api/telegram/test", status_code=202)
+    def telegram_test(request: Request) -> dict[str, Any]:
+        # Only the local dashboard should initiate a notification test.
+        origin = request.headers.get("origin")
+        if origin and origin != str(request.base_url).rstrip("/"):
+            raise HTTPException(
+                status_code=403, detail="Open the test from the Trade M2 dashboard."
+            )
+        if request.headers.get("content-type", "").split(";")[0] != "application/json":
+            raise HTTPException(status_code=415, detail="Use an application/json request.")
+        try:
+            test_id = telegram.queue_test()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"test_id": test_id, "recipient_count": len(telegram.chat_ids)}
+
+    @app.get("/api/telegram/tests/{test_id}")
+    def telegram_test_status(test_id: str) -> dict[str, Any]:
+        result = telegram.status(test_id)
+        if not any(recipient["counts"] for recipient in result["recipients"]):
+            raise HTTPException(status_code=404, detail="Telegram test not found.")
+        return result
 
     @app.get("/api/market-movement")
     def market_movement() -> dict[str, Any]:

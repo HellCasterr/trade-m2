@@ -113,10 +113,65 @@ Requirements:
 7. Select **Enable browser alerts** and approve the browser permission.
 8. Select **Load Nifty 200**. Leave the percentage blank to use the VIX-derived
    value, or enter a positive percentage up to 10.
-9. Keep the terminal and browser open during market hours.
+9. Keep the terminal open during market hours. Keep the browser open for desktop
+   notifications; configured Telegram delivery also works with the browser closed.
 
 The access token stays in process memory and is not written to disk. `.env`, cached
 constituents, and the SQLite database are excluded from Git.
+
+## Telegram alerts for two people
+
+One bot sends every new Case 2 alert to both configured chats. Each message identifies
+**Trade M2**, the stock, LONG/SHORT, Point A/B, crossing direction, reference entry,
+indicative **stock-price** stop, original IST timestamp, and live/recovery source.
+These values are not option-premium targets or stops. Existing Case 2 rules are unchanged.
+
+1. Create your bot through [@BotFather](https://t.me/BotFather) using `/newbot`.
+2. **Both people must open the new bot's chat and tap Start** (or send `/start`).
+3. Obtain each person's numeric chat ID. On your own computer, open
+   `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates` after they send `/start`.
+   Identify each person from `result[].message.from`, then use that message's
+   `message.chat.id`. Do not copy `update_id` or `message_id`. Phone numbers and
+   personal `@usernames` cannot be substituted for private chat IDs. If the result is
+   empty, send another message to the bot and refresh. Keep the token-bearing URL private.
+4. Add these lines to your local `.env` (replace all placeholders):
+
+   ```dotenv
+   TELEGRAM_ENABLED=true
+   TELEGRAM_BOT_TOKEN=your_bot_token_from_BotFather
+   TELEGRAM_CHAT_IDS=123456789,987654321
+   ```
+
+   A single recipient also works. Duplicate IDs are removed. For compatibility,
+   `TELEGRAM_CHAT_ID` is accepted when `TELEGRAM_CHAT_IDS` is empty. Negative group
+   IDs are supported, provided the bot is a member and can send messages.
+5. Restart Trade M2, then click **Send test to both chats** in the Telegram panel.
+   It shows a separate result for each recipient. Upstox login and an open market
+   are not needed for this test. `sent` means Telegram accepted the message, not
+   that the person read it.
+
+The token stays on the server, is excluded from Git via `.env`, and is not returned
+to the dashboard. Set `TELEGRAM_ENABLED=false` and restart to turn delivery off.
+Leave the computer awake, the program running, and Upstox connected for market alerts.
+Updating `.env` always requires a restart.
+
+Delivery uses SQLite queues and a separate background worker per recipient. A blocked
+bot or wrong chat ID cannot prevent delivery to the other person. Acknowledged messages
+are not resent after a restart; transient errors retry up to five attempts, and Telegram
+rate-limit delays are respected. There is a rare possibility of duplicate delivery if
+Telegram accepts a message but its response is lost or the process stops before saving
+success. Messages carry an alert ID to identify that case.
+
+First enablement skips already-stored alerts. Subsequently, pending deliveries survive
+restarts, but signals more than **five minutes past their original event time** expire.
+Recovered signals within that window are explicitly marked delayed. Queued alerts whose
+rules were recalculated are cancelled when the old event is removed. Counters include
+test messages. Separate program installations have separate queues and may both send
+alerts if configured with the same bot and recipient IDs.
+
+Telegram's standard bot messaging is free within its rate limits; this implementation
+does not enable paid broadcasts. References: [Bot API](https://core.telegram.org/bots/api),
+[limits](https://core.telegram.org/bots/faq#how-do-i-avoid-hitting-limits).
 
 ## Development
 

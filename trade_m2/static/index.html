@@ -65,6 +65,24 @@
       </div>
     </section>
 
+    <section class="panel telegram-panel" aria-labelledby="telegramHeading">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">PHONE NOTIFICATIONS</p>
+          <h2 id="telegramHeading">Telegram alerts</h2>
+        </div>
+        <button id="telegramTestButton" class="button secondary" disabled>Send test to both chats</button>
+      </div>
+      <p id="telegramStatus" class="muted" role="status">Checking Telegram configuration…</p>
+      <div id="telegramRecipients" class="telegram-recipients"></div>
+      <p id="telegramTestResult" class="muted" role="status" aria-live="polite"></p>
+      <details>
+        <summary>Set up two recipients</summary>
+        <p class="muted">Add your bot token as <code>TELEGRAM_BOT_TOKEN</code> and two numeric chat IDs, separated by a comma, as <code>TELEGRAM_CHAT_IDS</code> in .env. Set <code>TELEGRAM_ENABLED=true</code>, then restart Trade M2. Each person must open your bot and tap Start first. Use chat IDs, not phone numbers or personal @usernames.</p>
+        <p class="muted">Telegram works while the browser is closed. Keep Trade M2 running and connected to Upstox. Alerts older than five minutes expire.</p>
+      </details>
+    </section>
+
     <section class="logic-grid">
       <article class="logic-card long">
         <span class="signal-tag">POINT A · LONG</span>
